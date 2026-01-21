@@ -43,7 +43,7 @@
 1. **克隆仓库**：点击本页面右上角的 `Code` -> `Download ZIP`。
 2. **打开项目**：使用 VS Code 并在 PlatformIO 插件中点击 `Open Project`，打开esp32demo文件。
 3. **烧录程序**：连接 ESP32 后点击底部工具栏的 **Upload** (向右箭头) 图标。
-* *提示：如遇到连接失败，请在 Connecting 期间长按板载 BOOT 键。*
+
 
 
 
