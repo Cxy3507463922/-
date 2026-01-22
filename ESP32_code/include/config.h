@@ -9,18 +9,21 @@
 #define WIFI_PASSWORD "*******"  // 替换为你的WiFi密码
 
 // 服务器配置
-#define SERVER_HOST "192.168.0.101"         // 替换为服务器IP地址
+#define SERVER_HOST "117.72.189.169"         // 替换为服务器IP地址
 #define SERVER_PORT 5000                     // 服务器端口号
 #define API_PATH "/api/v1/status"           // API路径
+
+// 引脚配置
+#define PIN_PIR 13                           // 人体传感器引脚
+#define PIN_RELAY 12                         // 继电器引脚（断电器）
+#define PIN_LED_SENSE 14                     // LED状态查询引脚（输入）
 
 // 设备配置
 #define DEVICE_ID "esp32_smart_guardian"    // 设备唯一标识
 #define DEVICE_NAME "智能断电装置"    // 设备名称
 
-// 引脚配置
-#define PIN_PIR 13                           // 人体传感器引脚
-#define PIN_RELAY 12                         // 继电器引脚
-#define PIN_STATUS_LED 2                     // 板载LED引脚
+// 板载状态指示灯
+#define PIN_STATUS_LED 2                     
 
 // 传感器配置
 #define MOTION_DETECTED HIGH                 // 人体传感器检测到信号的电平

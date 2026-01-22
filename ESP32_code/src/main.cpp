@@ -39,6 +39,7 @@ void setup() {
   // 初始化引脚
   pinMode(PIN_PIR, INPUT);
   pinMode(PIN_RELAY, OUTPUT);
+  pinMode(PIN_LED_SENSE, INPUT); // LED 状态检测引脚
   pinMode(PIN_STATUS_LED, OUTPUT);
   
   // 初始状态
@@ -186,18 +187,31 @@ void deactivateRelay() {
 void syncWithServer() {
   if (!WiFi.isConnected()) return;
 
-  // 1. 上报当前状态（包含 situation 1,2,3）
+  // 读取 LED 的真实点亮状态
+  bool ledLit = (digitalRead(PIN_LED_SENSE) == HIGH);
+
+  // 1. 上报当前状态
   String statusUrl = "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + "/api/v1/status";
   http.begin(wifiClient, statusUrl);
   http.addHeader("Content-Type", "application/json");
 
-  StaticJsonDocument<200> doc;
+  StaticJsonDocument<256> doc;
   doc["device_id"] = DEVICE_ID;
   
-  int situation = motionDetected ? 1 : (relayActive ? 2 : 3);
+  // 情况判定：由感应状态和 LED真实检测状态决定
+  int situation = 3;
+  if (motionDetected) {
+    situation = 1; // 1:有人
+  } else if (ledLit) {
+    situation = 2; // 2:没人但灯亮（由专门引脚检测到）
+  } else {
+    situation = 3; // 3:没人且灯暗
+  }
+  
   doc["situation"] = situation;
   doc["motion"] = motionDetected;
   doc["relay"] = relayActive;
+  doc["led_sensed"] = ledLit;
   
   String jsonString;
   serializeJson(doc, jsonString);
