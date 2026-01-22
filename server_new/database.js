@@ -88,8 +88,8 @@ class DatabaseManager {
             this.db.run('INSERT INTO status_history (ts, state) VALUES (?, ?)', [tsSeconds, state], (err) => {
                 if (err) console.error('addStatusSample error:', err);
             });
-            // 保留最近 1 小时以上（每 3s 一条，1200 条 = 60min，设为 1440 以缓冲）
-            this.db.run('DELETE FROM status_history WHERE id NOT IN (SELECT id FROM status_history ORDER BY ts DESC LIMIT 1440)', (err) => {
+            // 保留最近 24 小时数据（每 3s 一条，28800 条 = 24h）
+            this.db.run('DELETE FROM status_history WHERE id NOT IN (SELECT id FROM status_history ORDER BY ts DESC LIMIT 28800)', (err) => {
                 if (err) console.error('prune status_history error:', err);
             });
         }).catch((err) => console.error('DB not ready for addStatusSample:', err));

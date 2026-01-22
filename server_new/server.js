@@ -139,8 +139,8 @@ app.get('/api/v1/full_status', (req, res) => {
                 db.getRecentLogsFiltered(null, 100, 'DEBUG', (err, infoLogs) => {
                     if (err) console.error('DB Error (infoLogs):', err);
 
-                    // 返回最近约 1 小时
-                    db.getStatusHistory(1440, (err, history) => {
+                    // 返回最近约 24 小时历史（28800 条）
+                    db.getStatusHistory(28800, (err, history) => {
                         if (err) console.error('DB Error (history):', err);
                         
                         clearTimeout(dbTimeout);

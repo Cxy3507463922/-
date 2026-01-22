@@ -170,13 +170,14 @@
 
         .uptime-legend {
             display: flex;
-            gap: 16px;
+            flex-wrap: wrap;
+            gap: 8px 16px;
             font-size: 12px;
             color: var(--secondary-text);
             margin-bottom: 30px;
         }
 
-        .legend-item { display: flex; align-items: center; gap: 4px; }
+        .legend-item { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
         .dot { width: 8px; height: 8px; border-radius: 50%; }
 
         .logs-minified {
@@ -245,8 +246,11 @@
         .hidden { display: none !important; }
 
         @media (max-width: 800px) {
-            .main-card { grid-template-columns: 1fr; }
+            .main-card { grid-template-columns: 1fr; padding: 30px 20px; }
             .status-left { border-right: none; padding-right: 0; padding-bottom: 40px; border-bottom: 1px solid #eee; }
+            .uptime-legend { justify-content: flex-start; gap: 10px 14px; }
+            .controls-bottom { flex-direction: column; width: 100%; }
+            .btn { width: 100%; justify-content: center; }
         }
     </style>
 </head>
@@ -271,9 +275,9 @@
                 <div class="uptime-header">
                     <h2>历史状态</h2>
                     <div class="range-switcher">
-                        <button class="range-btn active" data-range="180" onclick="setViewRange(180)">3min</button>
-                        <button class="range-btn" data-range="900" onclick="setViewRange(900)">15min</button>
-                        <button class="range-btn" data-range="3600" onclick="setViewRange(3600)">60min</button>
+                        <button class="range-btn active" data-range="900" onclick="setViewRange(900)">15min</button>
+                        <button class="range-btn" data-range="7200" onclick="setViewRange(7200)">2h</button>
+                        <button class="range-btn" data-range="86400" onclick="setViewRange(86400)">24h</button>
                     </div>
                 </div>
                 
@@ -292,8 +296,8 @@
                 <div class="uptime-header">
                     <h2>实时日志</h2>
                     <div class="range-switcher">
-                        <button class="range-btn" data-level="DEBUG" onclick="setLogLevel('DEBUG')">DEBUG</button>
                         <button class="range-btn active" data-level="INFO" onclick="setLogLevel('INFO')">INFO</button>
+                        <button class="range-btn" data-level="DEBUG" onclick="setLogLevel('DEBUG')">DEBUG</button>
                     </div>
                 </div>
                 <div class="logs-minified" id="log-list">
@@ -324,7 +328,7 @@
             FORCED: { color: '#8e44ad', title: '强制开灯', desc: '常亮到下次有人出现', pulse: true }
         };
 
-        let currentViewRange = 180; // 默认 3min
+        let currentViewRange = 900; // 默认 15min
         let currentLogLevel = 'INFO'; // 默认 INFO
 
         function setLogLevel(level) {
@@ -410,14 +414,18 @@
                 bar.className = 'uptime-bar';
                 bar.style.background = colorMap[bestState] || 'var(--state-offline)';
                 
-                // 提示标签：显示该格点的起始时间
-                const date = new Date(bStart * 1000);
-                const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                // 提示标签：显示该格点的时间段
+                const dateStart = new Date(bStart * 1000);
+                const dateEnd = new Date(bEnd * 1000);
+                const tStart = dateStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                const tEnd = dateEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                const timeRange = `${tStart} - ${tEnd}`;
                 
                 let label = '';
                 const diff = (i + 1) * secondsPerBar;
-                if (diff < 60) label = `${diff}s 前 (${timeStr})`;
-                else label = `${Math.floor(diff/60)}m 前 (${timeStr})`;
+                if (diff < 60) label = `${timeRange}`;
+                else if (diff < 7201) label = `${timeRange}`;
+                else label = `${timeRange}`;
                 
                 bar.dataset.label = label;
                 container.appendChild(bar);
