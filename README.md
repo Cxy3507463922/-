@@ -54,7 +54,7 @@
 
 2. server文件夹里的代码我是用Pycharm写的（VScode应该也行），我在pycharm里创建了三个PY文件(main, database, config)，以及一个templates目录（这个名字不能改）（目录里面是4个HTML文件，index,action,error,status），其他文件也是自动生成的，可能会与自己电脑的路径有关。需要用到flask, json, request 等库（可以看到报错再下载）。
 
-4. 该服务器与登录网页的操作者必须在同一局域网下。
+3. 该服务器与登录网页的操作者必须在同一局域网下。
 
 
 
