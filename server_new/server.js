@@ -132,20 +132,26 @@ app.get('/api/v1/full_status', (req, res) => {
         db.getAllDevices((err, devices) => {
             if (err) console.error('DB Error (devices):', err);
             
-            db.getRecentLogs(null, 200, (err, logs) => {
-                if (err) console.error('DB Error (logs):', err);
+            // 获取两部分日志：1. 所有的最近 500 条（含 DEBUG）；2. 非 DEBUG 的最近 100 条
+            db.getRecentLogs(null, 500, (err, allLogs) => {
+                if (err) console.error('DB Error (allLogs):', err);
 
-                // 返回最近约 1 小时（1440 条记录，每 3s 一条）
-                db.getStatusHistory(1440, (err, history) => {
-                    if (err) console.error('DB Error (history):', err);
-                    
-                    clearTimeout(dbTimeout);
-                    sendResponse({
-                        status: currentStatus,
-                        remaining_time: remaining_time,
-                        devices: devices || [],
-                        logs: logs || [],
-                        history: history || []
+                db.getRecentLogsFiltered(null, 100, 'DEBUG', (err, infoLogs) => {
+                    if (err) console.error('DB Error (infoLogs):', err);
+
+                    // 返回最近约 1 小时
+                    db.getStatusHistory(1440, (err, history) => {
+                        if (err) console.error('DB Error (history):', err);
+                        
+                        clearTimeout(dbTimeout);
+                        sendResponse({
+                            status: currentStatus,
+                            remaining_time: remaining_time,
+                            devices: devices || [],
+                            logs: allLogs || [],
+                            info_logs: infoLogs || [],
+                            history: history || []
+                        });
                     });
                 });
             });

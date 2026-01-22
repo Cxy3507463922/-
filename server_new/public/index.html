@@ -500,20 +500,20 @@
 
                     // 日志渲染
                     const logContainer = document.getElementById('log-list');
-                    if (logContainer && data.logs) {
+                    if (logContainer) {
                         const levelColor = {
                             ERROR: '#e74c3c',
                             WARN: '#f39c12',
                             INFO: '#3498db',
                             DEBUG: '#7f8c8d'
                         };
-                        logContainer.innerHTML = data.logs
-                            .filter(log => {
-                                if (currentLogLevel === 'INFO') {
-                                    return log.level !== 'DEBUG';
-                                }
-                                return true;
-                            })
+                        
+                        // 根据选择的级别使用不同的数据源
+                        const displayLogs = (currentLogLevel === 'INFO') 
+                            ? (data.info_logs || []) 
+                            : (data.logs || []);
+
+                        logContainer.innerHTML = displayLogs
                             .map(log => {
                                 const color = levelColor[log.level] || '#2ecc71';
                                 return `

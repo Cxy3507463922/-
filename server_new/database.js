@@ -162,6 +162,23 @@ class DatabaseManager {
         });
     }
 
+    getRecentLogsFiltered(deviceId, limit, excludeLevel, callback) {
+        this.waitForReady().then(() => {
+            let sql = 'SELECT * FROM logs WHERE level != ?';
+            let params = [excludeLevel];
+            if (deviceId) {
+                sql += ' AND device_id = ?';
+                params.push(deviceId);
+            }
+            sql += ' ORDER BY timestamp DESC LIMIT ?';
+            params.push(limit);
+            this.db.all(sql, params, callback);
+        }).catch((err) => {
+            console.error('DB not ready for getRecentLogsFiltered:', err);
+            callback(err);
+        });
+    }
+
     recordDecision(deviceId, decision, note) {
         const now = Date.now() / 1000;
         this.waitForReady().then(() => {
