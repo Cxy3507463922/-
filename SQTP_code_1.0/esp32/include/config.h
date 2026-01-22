@@ -5,8 +5,8 @@
 #include <Arduino.h>
 
 // WiFi 配置
-#define WIFI_SSID "happy777"          // 替换为你的WiFi名称
-#define WIFI_PASSWORD "nm878jojo"  // 替换为你的WiFi密码
+#define WIFI_SSID "******"          // 替换为你的WiFi名称
+#define WIFI_PASSWORD "*******"  // 替换为你的WiFi密码
 
 // 服务器配置
 #define SERVER_HOST "192.168.0.101"         // 替换为服务器IP地址
@@ -44,3 +44,4 @@
 #define AUTO_RELAY_ON_MOTION 1               // 检测到人体是否自动激活继电器（1/0）
 
 #endif
+
