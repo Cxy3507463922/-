@@ -146,44 +146,21 @@ void checkWiFiConnection() {
 }
 
 void activateRelay() {
-  if (!relayActive) {
-    relayActive = true;
-    debug("执行服务器指令：开启继电器");
-    digitalWrite(PIN_RELAY, HIGH);
-  }
+  relayActive = true;
+  digitalWrite(PIN_RELAY, RELAY_ON);
+  debug("执行服务器指令：开启继电器");
 }
 
 void deactivateRelay() {
-  if (relayActive) {
-    relayActive = false;
-    debug("执行服务器指令：关闭继电器");
-    digitalWrite(PIN_RELAY, LOW);
-  }
+  relayActive = false;
+  digitalWrite(PIN_RELAY, RELAY_OFF);
+  debug("执行服务器指令：关闭继电器");
 }
 
 void syncWithServer() {
   if (!WiFi.isConnected()) return;
 
-  // 1. 上报当前传感器原始数据给服务器决策
-  bool ledLit = (digitalRead(PIN_LED_SENSE) == HIGH);
-  String statusUrl = "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + "/api/v1/status";
-  http.begin(wifiClient, statusUrl);
-  http.addHeader("Content-Type", "application/json");
-
-  JsonDocument doc;
-  doc["device_id"] = DEVICE_ID;
-  doc["motion"] = motionDetected;
-  doc["led_sensed"] = ledLit;
-  
-  int situation = motionDetected ? 1 : (ledLit ? 2 : 3);
-  doc["situation"] = situation;
-
-  String jsonString;
-  serializeJson(doc, jsonString);
-  http.POST(jsonString);
-  http.end();
-
-  // 2. 纯听从指令：获取服务器计算后的继电器状态值
+  // 1. 获取服务器指令并立即执行 (控制优先)
   String relayUrl = "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + "/api/v1/relay_state";
   http.begin(wifiClient, relayUrl);
   int httpCode = http.GET();
@@ -196,6 +173,26 @@ void syncWithServer() {
       deactivateRelay();
     }
   }
+  http.end();
+
+  // 2. 上报当前传感器原始数据 (回显同步)
+  bool ledLit = (digitalRead(PIN_LED_SENSE) == HIGH);
+  String statusUrl = "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + "/api/v1/status";
+  http.begin(wifiClient, statusUrl);
+  http.addHeader("Content-Type", "application/json");
+
+  JsonDocument doc;
+  doc["device_id"] = DEVICE_ID;
+  doc["motion"] = motionDetected;
+  doc["relay"] = relayActive;
+  doc["led_sensed"] = ledLit;
+  
+  int situation = motionDetected ? 1 : (ledLit ? 2 : 3);
+  doc["situation"] = situation;
+
+  String jsonString;
+  serializeJson(doc, jsonString);
+  http.POST(jsonString);
   http.end();
 }
 

@@ -191,12 +191,10 @@ app.post('/api/v1/status', (req, res) => {
     currentStatus.device_connected = true;
     currentStatus.last_update = Date.now() / 1000;
     
-    // 同步继电器物理状态
-    currentStatus.relay_active = relay;
-    if (!relay) {
-        currentStatus.countdown_active = false;
-    }
-
+    // 【修改】核心逻辑变动：硬件上报的 relay 状态仅作为“回显”参考，不再覆盖服务器的决策。
+    // 服务器根据逻辑（有人/倒计时/强制模式）维护自己的 relay_active，
+    // 硬件通过 /api/v1/relay_state 接口同步执行结果。
+    
     if (motion !== currentStatus.motion_detected) {
         if (motion) {
             // 如果之前无人且强制模式已 armed，则此刻退出强制
@@ -250,7 +248,8 @@ app.get('/api/v1/command', (req, res) => {
 
 // 极简继电器状态接口：1 为开灯，0 为关灯
 app.get('/api/v1/relay_state', (req, res) => {
-    res.send(currentStatus.relay_active ? "1" : "0");
+    const state = getStateKey(currentStatus);
+    res.send(state === 'IDLE' ? "0" : "1");
 });
 
 app.post('/api/v1/command', (req, res) => {
