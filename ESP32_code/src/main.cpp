@@ -20,7 +20,6 @@ unsigned long lastWiFiCheck = 0;
 void setupWiFi();
 void checkWiFiConnection();
 void syncWithServer();
-void handleMotionDetection();
 void activateRelay();
 void deactivateRelay();
 void blinkStatusLED(int times, int delayTime);
@@ -66,13 +65,24 @@ void setup() {
 }
 
 void loop() {
-  // 检查WiFi连接
   checkWiFiConnection();
   
-  // 处理人体检测（高频采样）
-  handleMotionDetection();
+  // 1. 哑终端：仅收集信息 (只更新 motionDetected 变量)
+  int pirValue = digitalRead(PIN_PIR);
+  if (pirValue == MOTION_DETECTED) {
+    if (!motionDetected) {
+      motionDetected = true;
+      lastMotionTime = millis();
+      debug("传感器：检测到人体运动");
+    }
+  } else {
+    if (motionDetected && (millis() - lastMotionTime >= 2000)) {
+      motionDetected = false;
+      debug("传感器：人体运动结束");
+    }
+  }
   
-  // 每秒上报状态并同步服务器开关指令
+  // 2. 核心：每秒强制同步 (上传数据 -> 获取指令 -> 执行动作)
   if (millis() - lastStatusUpdate >= STATUS_UPDATE_INTERVAL && WiFi.isConnected()) {
     syncWithServer();
     lastStatusUpdate = millis();
@@ -135,50 +145,18 @@ void checkWiFiConnection() {
   }
 }
 
-void handleMotionDetection() {
-  int pirValue = digitalRead(PIN_PIR);
-  
-  if (pirValue == MOTION_DETECTED && !motionDetected) {
-    motionDetected = true;
-    lastMotionTime = millis();
-    debug("检测到人体运动");
-    
-    // 检测到人时激活继电器（LED灯常亮）
-    activateRelay();
-    
-    // 闪烁LED指示检测到运动
-    blinkStatusLED(5, 200);
-  } else if (pirValue != MOTION_DETECTED && motionDetected) {
-    // 检测到运动结束
-    if (millis() - lastMotionTime >= 2000) {
-      motionDetected = false;
-      debug("人体运动结束");
-      // 注意：这里不立即关闭继电器，由服务器控制倒计时后关闭
-    }
-  }
-}
-
 void activateRelay() {
   if (!relayActive) {
     relayActive = true;
-    debug("继电器激活（LED灯开启）");
-    
-    // 激活继电器
+    debug("执行服务器指令：开启继电器");
     digitalWrite(PIN_RELAY, HIGH);
-    
-    // 更新服务器状态
-    if (WiFi.isConnected()) {
-      syncWithServer();
-    }
   }
 }
 
 void deactivateRelay() {
   if (relayActive) {
     relayActive = false;
-    debug("继电器关闭（LED灯关闭）");
-    
-    // 关闭继电器
+    debug("执行服务器指令：关闭继电器");
     digitalWrite(PIN_RELAY, LOW);
   }
 }
@@ -186,38 +164,26 @@ void deactivateRelay() {
 void syncWithServer() {
   if (!WiFi.isConnected()) return;
 
-  // 读取 LED 的真实点亮状态
+  // 1. 上报当前传感器原始数据给服务器决策
   bool ledLit = (digitalRead(PIN_LED_SENSE) == HIGH);
-
-  // 1. 上报当前状态
   String statusUrl = "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + "/api/v1/status";
   http.begin(wifiClient, statusUrl);
   http.addHeader("Content-Type", "application/json");
 
   JsonDocument doc;
   doc["device_id"] = DEVICE_ID;
-  
-  // 情况判定：由感应状态和 LED真实检测状态决定
-  int situation = 3;
-  if (motionDetected) {
-    situation = 1; // 1:有人
-  } else if (ledLit) {
-    situation = 2; // 2:没人但灯亮（由专门引脚检测到）
-  } else {
-    situation = 3; // 3:没人且灯暗
-  }
-  
-  doc["situation"] = situation;
   doc["motion"] = motionDetected;
-  doc["relay"] = relayActive;
   doc["led_sensed"] = ledLit;
   
+  int situation = motionDetected ? 1 : (ledLit ? 2 : 3);
+  doc["situation"] = situation;
+
   String jsonString;
   serializeJson(doc, jsonString);
   http.POST(jsonString);
   http.end();
 
-  // 2. 立即同步服务器的继电器目标状态 (0/1)
+  // 2. 纯听从指令：获取服务器计算后的继电器状态值
   String relayUrl = "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + "/api/v1/relay_state";
   http.begin(wifiClient, relayUrl);
   int httpCode = http.GET();

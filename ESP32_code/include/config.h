@@ -35,7 +35,7 @@
 
 // 通信配置
 #define HTTP_TIMEOUT 2000                    // HTTP请求超时时间（毫秒）
-#define STATUS_UPDATE_INTERVAL 1000          // 每一秒上报并同步一次
+#define STATUS_UPDATE_INTERVAL 500           // 每 500ms 上报并同步一次
 #define RETRY_COUNT 3                        // 网络请求重试次数
 
 // 调试配置
