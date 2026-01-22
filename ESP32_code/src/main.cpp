@@ -19,8 +19,7 @@ unsigned long lastWiFiCheck = 0;
 // 函数声明
 void setupWiFi();
 void checkWiFiConnection();
-void updateServerStatus();
-void checkServerCommands();
+void syncWithServer();
 void handleMotionDetection();
 void activateRelay();
 void deactivateRelay();
@@ -169,7 +168,7 @@ void activateRelay() {
     
     // 更新服务器状态
     if (WiFi.isConnected()) {
-      updateServerStatus();
+      syncWithServer();
     }
   }
 }
@@ -195,7 +194,7 @@ void syncWithServer() {
   http.begin(wifiClient, statusUrl);
   http.addHeader("Content-Type", "application/json");
 
-  StaticJsonDocument<256> doc;
+  JsonDocument doc;
   doc["device_id"] = DEVICE_ID;
   
   // 情况判定：由感应状态和 LED真实检测状态决定
