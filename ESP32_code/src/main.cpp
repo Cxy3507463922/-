@@ -69,23 +69,16 @@ void loop() {
   // 检查WiFi连接
   checkWiFiConnection();
   
-  // 处理人体检测
+  // 处理人体检测（高频采样）
   handleMotionDetection();
   
-  // 定期检查服务器命令
-  if (millis() - lastCommandCheck >= 3000 && WiFi.isConnected()) {
-    checkServerCommands();
-    lastCommandCheck = millis();
-  }
-  
-  // 定期更新服务器状态
+  // 每秒上报状态并同步服务器开关指令
   if (millis() - lastStatusUpdate >= STATUS_UPDATE_INTERVAL && WiFi.isConnected()) {
-    updateServerStatus();
+    syncWithServer();
     lastStatusUpdate = millis();
   }
   
-  // 延迟以稳定系统
-  delay(100);
+  delay(50);
 }
 
 void setupWiFi() {
@@ -187,88 +180,43 @@ void deactivateRelay() {
     
     // 关闭继电器
     digitalWrite(PIN_RELAY, LOW);
-    
-    // 更新服务器状态
-    if (WiFi.isConnected()) {
-      updateServerStatus();
-    }
   }
 }
 
-void updateServerStatus() {
-  if (!WiFi.isConnected()) {
-    return;
-  }
-  
-  String serverUrl = "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + API_PATH;
-  
-  http.begin(wifiClient, serverUrl);
+void syncWithServer() {
+  if (!WiFi.isConnected()) return;
+
+  // 1. 上报当前状态（包含 situation 1,2,3）
+  String statusUrl = "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + "/api/v1/status";
+  http.begin(wifiClient, statusUrl);
   http.addHeader("Content-Type", "application/json");
-  
-  // 创建JSON数据
-  StaticJsonDocument<256> doc;
+
+  StaticJsonDocument<200> doc;
   doc["device_id"] = DEVICE_ID;
+  
+  int situation = motionDetected ? 1 : (relayActive ? 2 : 3);
+  doc["situation"] = situation;
   doc["motion"] = motionDetected;
   doc["relay"] = relayActive;
-  doc["signal_strength"] = WiFi.RSSI();
-  doc["ip_address"] = WiFi.localIP().toString();
   
   String jsonString;
   serializeJson(doc, jsonString);
-  
-  debug("发送状态到服务器: " + jsonString);
-  
-  int httpResponseCode = http.POST(jsonString);
-  
-  if (httpResponseCode > 0) {
-    String response = http.getString();
-    debug("服务器响应 (" + String(httpResponseCode) + "): " + response);
-  } else {
-    debug("服务器请求失败: " + http.errorToString(httpResponseCode));
-  }
-  
+  http.POST(jsonString);
   http.end();
-}
 
-void checkServerCommands() {
-  if (!WiFi.isConnected()) {
-    return;
-  }
+  // 2. 立即同步服务器的继电器目标状态 (0/1)
+  String relayUrl = "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + "/api/v1/relay_state";
+  http.begin(wifiClient, relayUrl);
+  int httpCode = http.GET();
   
-  String serverUrl = "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + "/api/v1/command";
-  
-  http.begin(wifiClient, serverUrl);
-  http.addHeader("Content-Type", "application/json");
-  
-  // 创建请求数据
-  StaticJsonDocument<128> doc;
-  doc["device_id"] = DEVICE_ID;
-  
-  String jsonString;
-  serializeJson(doc, jsonString);
-  
-  int httpResponseCode = http.GET();
-  
-  if (httpResponseCode > 0) {
-    String response = http.getString();
-    debug("命令检查响应 (" + String(httpResponseCode) + "): " + response);
-    
-    // 解析响应
-    StaticJsonDocument<256> responseDoc;
-    DeserializationError error = deserializeJson(responseDoc, response);
-    
-    if (!error) {
-      String command = responseDoc["command"];
-      if (command == "relay_on") {
-        activateRelay();
-      } else if (command == "relay_off") {
-        deactivateRelay();
-      }
+  if (httpCode == HTTP_CODE_OK) {
+    String payload = http.getString();
+    if (payload == "1") {
+      activateRelay();
+    } else if (payload == "0") {
+      deactivateRelay();
     }
-  } else {
-    debug("命令检查失败: " + http.errorToString(httpResponseCode));
   }
-  
   http.end();
 }
 

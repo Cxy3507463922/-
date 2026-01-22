@@ -31,9 +31,8 @@
 #define RELAY_OFF LOW                        // 继电器关闭电平
 
 // 通信配置
-#define HTTP_TIMEOUT 3000                    // HTTP请求超时时间（毫秒）
-#define STATUS_UPDATE_INTERVAL 2000          // 状态更新间隔（毫秒）
-#define COMMAND_CHECK_INTERVAL 3000          // 命令检查间隔（毫秒）
+#define HTTP_TIMEOUT 2000                    // HTTP请求超时时间（毫秒）
+#define STATUS_UPDATE_INTERVAL 1000          // 每一秒上报并同步一次
 #define RETRY_COUNT 3                        // 网络请求重试次数
 
 // 调试配置

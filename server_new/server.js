@@ -52,19 +52,19 @@ function logStateChange(oldState, newState, deviceId) {
 
     if (newState === 'OFFLINE') {
         level = 'ERROR';
-        message = '设备失去连接 (离线)';
+        message = '状态更新：设备离线';
     } else if (newState === 'FORCED') {
         level = 'WARN';
-        message = '进入强制开灯模式';
+        message = '状态更新：强制开灯';
     } else if (newState === 'COUNTDOWN') {
         level = 'WARN';
-        message = '离开探测区，即将自动关灯';
+        message = '状态更新：即将关灯';
     } else if (newState === 'SOMEONE') {
         level = 'INFO';
-        message = '检测到人体运动';
+        message = '状态更新：有人';
     } else if (newState === 'IDLE') {
         level = 'INFO';
-        message = '无人且已安全关灯';
+        message = '状态更新：无人关灯';
     }
 
     db.log(deviceId || config.DEVICE_ID, level, message, timestamp);
@@ -132,7 +132,7 @@ app.get('/api/v1/full_status', (req, res) => {
         db.getAllDevices((err, devices) => {
             if (err) console.error('DB Error (devices):', err);
             
-            db.getRecentLogs(null, 20, (err, logs) => {
+            db.getRecentLogs(null, 200, (err, logs) => {
                 if (err) console.error('DB Error (logs):', err);
 
                 // 返回最近约 1 小时（1440 条记录，每 3s 一条）
@@ -160,15 +160,36 @@ app.get('/api/v1/full_status', (req, res) => {
 app.post('/api/v1/status', (req, res) => {
     const data = req.body;
     const deviceId = data.device_id || config.DEVICE_ID;
-    const motion = !!data.motion;
     
-    // 硬件每一次上报都记录 DEBUG 日志
-    db.log(deviceId, 'DEBUG', `硬件上报: ${motion ? '有人' : '无人'}`);
+    // 支持直接传 situation 代码 (1:有人, 2:没人但灯亮, 3:没人且灯暗)
+    let motion = !!data.motion;
+    let relay = !!data.relay;
+    
+    if (data.situation === 1) {
+        motion = true;
+        relay = true;
+    } else if (data.situation === 2) {
+        motion = false;
+        relay = true;
+    } else if (data.situation === 3) {
+        motion = false;
+        relay = false;
+    }
+    
+    // 硬件上报的三种情况判定
+    let reportText = motion ? "有人" : (relay ? "无人但灯亮" : "无人且灯暗");
+    db.log(deviceId, 'DEBUG', `硬件上报: ${reportText}`);
 
     const oldState = getStateKey(currentStatus);
 
     currentStatus.device_connected = true;
     currentStatus.last_update = Date.now() / 1000;
+    
+    // 同步继电器物理状态
+    currentStatus.relay_active = relay;
+    if (!relay) {
+        currentStatus.countdown_active = false;
+    }
 
     if (motion !== currentStatus.motion_detected) {
         if (motion) {
@@ -189,8 +210,13 @@ app.post('/api/v1/status', (req, res) => {
             if (currentStatus.forced_mode) {
                 currentStatus.forced_release_armed = true;
             } else {
-                currentStatus.countdown_active = true;
-                currentStatus.countdown_start = Date.now() / 1000;
+                // 只有在灯亮着的情况下离开，才进入即将关灯倒计时
+                if (currentStatus.relay_active) {
+                    currentStatus.countdown_active = true;
+                    currentStatus.countdown_start = Date.now() / 1000;
+                } else {
+                    currentStatus.countdown_active = false;
+                }
             }
         }
     }
@@ -216,6 +242,11 @@ app.get('/api/v1/command', (req, res) => {
     });
 });
 
+// 极简继电器状态接口：1 为开灯，0 为关灯
+app.get('/api/v1/relay_state', (req, res) => {
+    res.send(currentStatus.relay_active ? "1" : "0");
+});
+
 app.post('/api/v1/command', (req, res) => {
     const { command } = req.body;
     if (!command) return res.status(400).json({ success: false, message: 'Missing command' });
@@ -229,6 +260,18 @@ app.post('/api/v1/command', (req, res) => {
         currentStatus.countdown_active = false;
         currentStatus.relay_active = true;
         currentStatus.pending_command = 'relay_on';
+    } else if (command === 'cancel_forced') {
+        currentStatus.forced_mode = false;
+        currentStatus.forced_release_armed = false;
+        // 取消后，如果是有人状态则保持开灯，如果是无人状态则恢复倒计时或关灯
+        if (currentStatus.motion_detected) {
+            currentStatus.relay_active = true;
+            currentStatus.countdown_active = false;
+        } else {
+            // 无人时取消，直接触发关灯或倒计时逻辑
+            currentStatus.countdown_active = true;
+            currentStatus.countdown_start = Date.now() / 1000;
+        }
     } else if (command === 'power_off') {
         currentStatus.forced_mode = false;
         currentStatus.forced_release_armed = false;
@@ -265,7 +308,7 @@ db.waitForReady().then(() => {
 
     app.listen(config.PORT, () => {
         db.updateDeviceStatus(config.DEVICE_ID, 'idle');
-        db.log('SYSTEM', 'INFO', 'Node.js 智能断电装置服务器启动');
+        db.log('SYSTEM', 'INFO', '服务器已启动');
         console.log(`Server running at http://localhost:${config.PORT}`);
     });
 }).catch(err => {
