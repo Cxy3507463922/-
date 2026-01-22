@@ -193,7 +193,25 @@
             border-bottom: 1px solid #fafafa;
             font-size: 13px;
             display: flex;
-            gap: 10px;
+            gap: 8px; /* 缩小间距 */
+            align-items: flex-start;
+        }
+
+        .log-time {
+            color: #999;
+            min-width: 68px; /* 时间占位稍微紧凑点 */
+            font-variant-numeric: tabular-nums;
+        }
+
+        .log-level {
+            font-weight: 600;
+            min-width: 52px; /* 给等级一个固定宽度，使后面的消息内容垂直左对齐 */
+        }
+
+        .log-msg {
+            flex: 1;
+            text-align: left;
+            word-break: break-all;
         }
 
         /* --- 底部按钮 --- */
@@ -500,9 +518,9 @@
                                 const color = levelColor[log.level] || '#2ecc71';
                                 return `
                                     <div class="log-row">
-                                        <span style="color:#999; min-width:80px;">${new Date(log.timestamp*1000).toLocaleTimeString()}</span>
-                                        <span style="font-weight:600; color:${color}">${log.level}</span>
-                                        <span>${log.message}</span>
+                                        <span class="log-time">${new Date(log.timestamp*1000).toLocaleTimeString([], {hour12:false})}</span>
+                                        <span class="log-level" style="color:${color}">${log.level}</span>
+                                        <span class="log-msg">${log.message}</span>
                                     </div>
                                 `;
                             }).join('');

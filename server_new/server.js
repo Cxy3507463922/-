@@ -178,7 +178,7 @@ app.post('/api/v1/status', (req, res) => {
     
     // 硬件上报的三种情况判定
     let reportText = motion ? "有人" : (relay ? "无人但灯亮" : "无人且灯暗");
-    db.log(deviceId, 'DEBUG', `硬件上报: ${reportText}`);
+    db.log(deviceId, 'DEBUG', `硬件上报: ${reportText} (${deviceId})`);
 
     const oldState = getStateKey(currentStatus);
 
