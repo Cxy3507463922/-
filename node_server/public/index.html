@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Guardian | 智慧卫士控制面板</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --primary-text: #1a1a1a;
+            --secondary-text: #666;
+            
+            --state-offline: #bdc3c7;
+            --state-someone: #2ecc71;
+            --state-countdown: #f39c12; /* 橙色 */
+            --state-idle: #3498db;
+            --state-forced: #8e44ad; /* 紫色 */
+            
+            --shadow: 0 4px 20px rgba(0,0,0,0.08);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes glow-pulse {
+            0% { box-shadow: 0 0 22px rgba(0,0,0,0.08), 0 0 0 0 rgba(0,0,0,0.08); }
+            50% { box-shadow: 0 0 32px rgba(0,0,0,0.14), 0 0 20px 6px currentColor; }
+            100% { box-shadow: 0 0 22px rgba(0,0,0,0.08), 0 0 0 0 rgba(0,0,0,0.08); }
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: var(--bg-color); color: var(--primary-text); min-height: 100vh; overflow-x: hidden; }
+
+        .app-container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
+
+        .main-card {
+            background: var(--card-bg);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            padding: 40px;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* --- 左侧状态灯 --- */
+        .status-left {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid #eee;
+            padding-right: 40px;
+        }
+
+        .lamp-outer {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin-bottom: 24px;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(240,242,245,0.9));
+            box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+        }
+
+        .lamp-inner {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            transition: var(--transition);
+            position: relative;
+            z-index: 2;
+            box-shadow: 0 0 22px rgba(0,0,0,0.08);
+        }
+
+        .lamp-ring { display: none; }
+
+        .active-pulse .lamp-inner {
+            animation: glow-pulse 2.4s infinite;
+        }
+
+        .lamp-info { text-align: center; }
+        .lamp-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+        .lamp-subtitle { font-size: 14px; color: var(--secondary-text); }
+        .countdown-text { font-family: 'Monaco', monospace; font-size: 28px; font-weight: bold; color: var(--state-countdown); margin-top: 10px; }
+
+        /* --- 右侧 Uptime 界面 --- */
+        .uptime-right {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .uptime-header { 
+            margin-bottom: 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+        }
+        .uptime-header h2 { font-size: 20px; font-weight: 600; }
+
+        .range-switcher {
+            display: flex;
+            background: #eee;
+            padding: 2px;
+            border-radius: 8px;
+            gap: 2px;
+        }
+
+        .range-btn {
+            border: none;
+            padding: 4px 10px;
+            font-size: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            background: transparent;
+            color: #666;
+            transition: var(--transition);
+        }
+
+        .range-btn.active {
+            background: #fff;
+            color: #333;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .uptime-timeline {
+            display: flex;
+            gap: 2px;
+            height: 40px;
+            margin-bottom: 12px;
+            flex-direction: row-reverse; /* 右侧代表最近时刻 */
+        }
+
+        .uptime-bar {
+            flex: 1;
+            height: 100%;
+            border-radius: 2px;
+            background: #eee;
+            transition: var(--transition);
+            cursor: pointer;
+            position: relative;
+        }
+
+        .uptime-bar:hover::after {
+            content: attr(data-label);
+            position: absolute;
+            bottom: 45px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        .uptime-legend {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--secondary-text);
+            margin-bottom: 30px;
+        }
+
+        .legend-item { display: flex; align-items: center; gap: 4px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+        .logs-minified {
+            flex: 1;
+            border: 1px solid #f0f0f0;
+            border-radius: 12px;
+            padding: 15px;
+            overflow-y: auto;
+            max-height: 250px;
+        }
+
+        .log-row {
+            padding: 8px 0;
+            border-bottom: 1px solid #fafafa;
+            font-size: 13px;
+            display: flex;
+            gap: 10px;
+        }
+
+        /* --- 底部按钮 --- */
+        .controls-bottom {
+            margin-top: 30px;
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .btn:active { transform: translateY(2px); }
+        .btn-orange { background: var(--state-forced); color: white; }
+        .btn-red { background: var(--state-countdown); color: white; }
+        .btn-toggle { background: #f0f0f0; color: #333; }
+        .btn-disabled { background: #cfd3d7; color: #666; cursor: not-allowed; box-shadow: none; }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 800px) {
+            .main-card { grid-template-columns: 1fr; }
+            .status-left { border-right: none; padding-right: 0; padding-bottom: 40px; border-bottom: 1px solid #eee; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="main-card">
+            <!-- 左侧核心灯 -->
+            <div class="status-left">
+                <div class="lamp-outer" id="lamp-container">
+                    <div class="lamp-ring"></div>
+                    <div class="lamp-inner" id="main-lamp"></div>
+                </div>
+                <div class="lamp-info">
+                    <div class="lamp-title" id="status-title">检测中...</div>
+                    <div class="lamp-subtitle" id="status-desc">正在拉取实时数据...</div>
+                    <div class="countdown-text hidden" id="countdown-timer">00:00</div>
+                </div>
+            </div>
+
+            <!-- 右侧 Uptime -->
+            <div class="uptime-right">
+                <div class="uptime-header">
+                    <h2>状态历程</h2>
+                    <div class="range-switcher">
+                        <button class="range-btn active" data-range="180" onclick="setViewRange(180)">3min</button>
+                        <button class="range-btn" data-range="900" onclick="setViewRange(900)">15min</button>
+                        <button class="range-btn" data-range="3600" onclick="setViewRange(3600)">60min</button>
+                    </div>
+                </div>
+                
+                <div class="uptime-timeline" id="uptime-bars">
+                    <!-- Bars generated by JS -->
+                </div>
+
+                <div class="uptime-legend">
+                    <div class="legend-item"><div class="dot" style="background:var(--state-someone)"></div>有人</div>
+                    <div class="legend-item"><div class="dot" style="background:var(--state-idle)"></div>无人</div>
+                    <div class="legend-item"><div class="dot" style="background:var(--state-countdown)"></div>即将关灯</div>
+                    <div class="legend-item"><div class="dot" style="background:var(--state-forced)"></div>强制开灯</div>
+                    <div class="legend-item"><div class="dot" style="background:var(--state-offline)"></div>设备离线</div>
+                </div>
+
+                <div class="uptime-header">
+                    <h2>实时事件日志</h2>
+                </div>
+                <div class="logs-minified" id="log-list">
+                    <!-- Logs generated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部控制 -->
+        <div class="controls-bottom">
+            <button class="btn btn-orange" id="btn-force-on" onclick="sendCommand('keep_power')">
+                <svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M13 10V3L4 14H11V21L20 10H13Z"/></svg>
+                本次强制开灯
+            </button>
+            <button class="btn btn-red hidden" id="btn-force-off" onclick="sendCommand('power_off')">
+                <svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>
+                立刻关灯
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const UI_STATES = {
+            OFFLINE: { color: '#bdc3c7', title: '设备离线', desc: '无法获取设备状态' },
+            SOMEONE: { color: '#2ecc71', title: '有人', desc: '检测到人体运动', pulse: true },
+            COUNTDOWN: { color: '#f39c12', title: '即将关灯', desc: '倒计时中', pulse: true },
+            IDLE: { color: '#3498db', title: '无人', desc: '已关灯' },
+            FORCED: { color: '#8e44ad', title: '强制开灯', desc: '常亮到下次有人出现', pulse: true }
+        };
+
+        let currentViewRange = 180; // 默认 3min
+
+        function setViewRange(seconds) {
+            currentViewRange = seconds;
+            // 更新按钮样式
+            document.querySelectorAll('.range-btn').forEach(btn => {
+                const rangeValue = parseInt(btn.getAttribute('data-range'));
+                btn.classList.toggle('active', rangeValue === seconds);
+            });
+            updateUI(); // 立即刷新
+        }
+
+        function getStatusState(status) {
+            if (!status.device_connected) return 'OFFLINE';
+            if (status.motion_detected) return 'SOMEONE';
+            if (status.forced_mode) return 'FORCED';
+            if (status.relay_active && status.countdown_active) return 'COUNTDOWN';
+            return 'IDLE';
+        }
+
+        function generateTimeline(history) {
+            const container = document.getElementById('uptime-bars');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const colorMap = {
+                OFFLINE: 'var(--state-offline)',
+                SOMEONE: 'var(--state-someone)',
+                COUNTDOWN: 'var(--state-countdown)',
+                FORCED: 'var(--state-forced)',
+                IDLE: 'var(--state-idle)'
+            };
+
+            const list = Array.isArray(history) ? history : [];
+            const totalBars = 60;
+            const secondsPerBar = Math.floor(currentViewRange / totalBars);
+            
+            // 状态优先级 (聚合时，高优先级状态覆盖低优先级)
+            const priority = { 'FORCED': 5, 'SOMEONE': 4, 'COUNTDOWN': 3, 'IDLE': 2, 'OFFLINE': 1, 'UNKNOWN': 0 };
+
+            // 固定分界逻辑：根据当前时间戳对齐到最近的格点起始位置
+            // 比如 15s 一格，则对齐到 00, 15, 30, 45 秒
+            const now = Date.now() / 1000;
+            const latestBucketStart = Math.floor(now / secondsPerBar) * secondsPerBar;
+
+            for (let i = 0; i < totalBars; i++) {
+                const bStart = latestBucketStart - (i * secondsPerBar);
+                const bEnd = bStart + secondsPerBar;
+
+                // 在该时间段内查找样本
+                let bestState = 'OFFLINE';
+                let maxPrio = 0;
+                let hasSample = false;
+
+                for (const sample of list) {
+                    if (sample.ts >= bStart && sample.ts < bEnd) {
+                        hasSample = true;
+                        if (priority[sample.state] > maxPrio) {
+                            maxPrio = priority[sample.state];
+                            bestState = sample.state;
+                        }
+                    }
+                    if (sample.ts < bStart) break; // 历史记录是倒序的，超过了就可以停了
+                }
+
+                const bar = document.createElement('div');
+                bar.className = 'uptime-bar';
+                bar.style.background = colorMap[bestState] || 'var(--state-offline)';
+                
+                // 提示标签：显示该格点的起始时间
+                const date = new Date(bStart * 1000);
+                const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                
+                let label = '';
+                if (i === 0) label = `当前 (${timeStr})`;
+                else {
+                    const diff = i * secondsPerBar;
+                    if (diff < 60) label = `${diff}s 前 (${timeStr})`;
+                    else label = `${Math.floor(diff/60)}m 前 (${timeStr})`;
+                }
+                
+                bar.dataset.label = label;
+                container.appendChild(bar);
+            }
+        }
+
+        function updateUI() {
+            fetch('/api/v1/full_status')
+                .then(res => {
+                    if (!res.ok) throw new Error('网络响应错误: ' + res.status);
+                    return res.json();
+                })
+                .then(data => {
+                    if (!data || !data.status) throw new Error('数据格式非法');
+                    const status = data.status;
+                    const stateKey = getStatusState(status);
+                    const config = UI_STATES[stateKey] || UI_STATES.OFFLINE;
+
+                    // 灯泡颜色与动画
+                    const lamp = document.getElementById('main-lamp');
+                    const container = document.getElementById('lamp-container');
+                    if (lamp) lamp.style.backgroundColor = config.color;
+                    if (container) {
+                        container.style.color = config.color;
+                        if (config.pulse) container.classList.add('active-pulse');
+                        else container.classList.remove('active-pulse');
+                    }
+
+                    // 文字状态
+                    document.getElementById('status-title').textContent = config.title;
+                    document.getElementById('status-desc').textContent = config.desc;
+
+                    // 倒计时
+                    const cdText = document.getElementById('countdown-timer');
+                    if (cdText) {
+                        if (stateKey === 'COUNTDOWN') {
+                            cdText.classList.remove('hidden');
+                            const m = Math.floor(data.remaining_time / 60);
+                            const s = Math.floor(data.remaining_time % 60);
+                            cdText.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                        } else {
+                            cdText.classList.add('hidden');
+                        }
+                    }
+
+                    // 按钮可见性与禁用（离线则全部隐藏）
+                    const controls = document.querySelector('.controls-bottom');
+                    const offline = stateKey === 'OFFLINE';
+                    if (controls) controls.classList.toggle('hidden', offline);
+
+                    if (!offline) {
+                        const canOff = !status.motion_detected && status.relay_active;
+                        const offBtn = document.getElementById('btn-force-off');
+                        if (offBtn) offBtn.classList.toggle('hidden', !canOff);
+
+                        const forceBtn = document.getElementById('btn-force-on');
+                        if (forceBtn) {
+                            const disabled = status.forced_mode === true;
+                            forceBtn.disabled = disabled;
+                            forceBtn.classList.toggle('btn-disabled', disabled);
+                            
+                            // 动态改变按钮文本
+                            const label = status.motion_detected ? ' 离开后强制开灯' : ' 本次强制开灯';
+                            forceBtn.innerHTML = `
+                                <svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M13 10V3L4 14H11V21L20 10H13Z"/></svg>
+                                ${label}
+                            `;
+                        }
+                    }
+
+                    // 日志渲染
+                    const logContainer = document.getElementById('log-list');
+                    if (logContainer && data.logs) {
+                        const levelColor = {
+                            ERROR: '#e74c3c',
+                            WARN: '#f39c12',
+                            INFO: '#3498db',
+                            DEBUG: '#7f8c8d'
+                        };
+                        logContainer.innerHTML = data.logs.map(log => {
+                            const color = levelColor[log.level] || '#2ecc71';
+                            return `
+                                <div class="log-row">
+                                    <span style="color:#999; min-width:80px;">${new Date(log.timestamp*1000).toLocaleTimeString()}</span>
+                                    <span style="font-weight:600; color:${color}">${log.level}</span>
+                                    <span>${log.message}</span>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+
+                    // 每次更新刷新时间轴，使用真实历史数据
+                    generateTimeline(data.history);
+                })
+                .catch(err => {
+                    console.error('UI 更新失败:', err);
+                    document.getElementById('status-title').textContent = '连接失败';
+                    document.getElementById('status-desc').textContent = '无法获取服务器数据，请检查后端运行状态';
+                });
+        }
+
+        function sendCommand(cmd) {
+            if (cmd === 'keep_power') {
+                const forceBtn = document.getElementById('btn-force-on');
+                if (forceBtn) {
+                    forceBtn.disabled = true;
+                    forceBtn.classList.add('btn-disabled');
+                }
+            }
+
+            fetch('/api/v1/command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command: cmd })
+            }).then(() => updateUI());
+        }
+
+        setInterval(updateUI, 1000);
+        updateUI();
+    </script>
+</body>
+</html>
