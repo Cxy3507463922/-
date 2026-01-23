@@ -50,11 +50,9 @@
 
 ## 📥 如何获取与部署
  
-1. esp32_code文件夹(esp32_demo仅为演示用，功能是人离开红外传感器范围一分钟后自动断电)里面有些东西是VScode的Platform OI生成的内容（有一些path是自己电脑上的绝对路径，不能直接下载）。所以直接打开VScode，用Platform OI创建一个Project，把src下的main.cpp的内容复制替换，然后再在include文件夹下创建一个config.h，头文件里面的WIFI名称和密码以及服务器地址需要替换，注意家庭网络每次电脑重启后的IP地址是不一样的。
-
-2. server文件夹里的代码我是用Pycharm写的（VScode应该也行），我在pycharm里创建了三个PY文件(main, database, config)，以及一个templates目录（这个名字不能改）（目录里面是4个HTML文件，index,action,error,status），其他文件也是自动生成的，可能会与自己电脑的路径有关。需要用到flask, json, request 等库（可以看到报错再下载）。
-
-3. 该服务器与登录网页的操作者必须在同一局域网下。
+1. esp32_demo仅为演示用，功能是人离开红外传感器范围一分钟后自动断电
+2. esp32_code文件夹里面有些东西是VScode的Platform OI生成的内容（有一些path是自己电脑上的绝对路径，不能直接下载）。所以直接打开VScode，用Platform OI创建一个Project，把src下的main.cpp的内容复制替换，然后再在include文件夹下创建一个config.h，头文件里面的WIFI名称和密码以及服务器地址需要替换。
+3. server地址为[http://117.72.189.169:5000/](http://117.72.189.169:5000/)，直接即可与已导入代码的esp32交互，server_new文件夹里的readme中有更多对服务器内容的解释。
 
 
 
